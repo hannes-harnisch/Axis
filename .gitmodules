@@ -1,0 +1,6 @@
+[submodule "Tests/doctest"]
+	path = Tests/doctest
+	url = https://github.com/doctest/doctest
+[submodule "Dependencies/doctest"]
+	path = Dependencies/doctest
+	url = https://github.com/doctest/doctest
