@@ -1,9 +1,12 @@
 #pragma once
 
+#include "Axis/Util/LookupTable.hpp"
+
 #include <cstdint>
 
 namespace ax
 {
+	// Changing constant values and adding constants requires also changing the lookup table definition below.
 	enum class TokenKind : uint8_t
 	{
 		Name,
@@ -19,8 +22,6 @@ namespace ax
 		RParen,
 		LBracket,
 		RBracket,
-		LAngle,
-		RAngle,
 		Colon,
 		Semicolon,
 		Comma,
@@ -33,10 +34,12 @@ namespace ax
 		Mul,
 		Div,
 		Mod,
+		LogicNot,
+		Less,
+		Greater,
 		BitAnd,
 		BitOr,
 		Tilde,
-		LogicNot,
 		Address,
 		Pointer,
 		Maybe,
@@ -142,9 +145,9 @@ namespace ax
 
 	struct Token
 	{
-		uint32_t  offset = 0;
-		uint16_t  length = 0;
 		TokenKind kind	 = TokenKind::Name;
+		uint16_t  length = 0;
+		uint32_t  offset = 0;
 
 		std::string_view get_view(std::string_view source) const
 		{

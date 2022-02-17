@@ -4,3 +4,6 @@
 [submodule "Dependencies/doctest"]
 	path = Dependencies/doctest
 	url = https://github.com/doctest/doctest
+[submodule "Dependencies/magic_enum"]
+	path = Dependencies/magic_enum
+	url = https://github.com/Neargye/magic_enum

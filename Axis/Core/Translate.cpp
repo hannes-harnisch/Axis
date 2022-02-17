@@ -9,19 +9,20 @@ namespace ax
 	{
 		std::string path(path_text);
 
-		FILE* file = fopen(path.data(), "r");
-		if(!file)
+		FILE* file;
+		auto  error = fopen_s(&file, path.data(), "r");
+		if(error)
 			return {};
 
-		fseek(file, 0, SEEK_END);
-		long size = ftell(file);
-		fseek(file, 0, SEEK_SET);
+		std::fseek(file, 0, SEEK_END);
+		long size = std::ftell(file);
+		std::fseek(file, 0, SEEK_SET);
 
 		std::string content;
 		content.resize(size);
-		fread(content.data(), size, 1, file);
+		std::fread(content.data(), size, 1, file);
 
-		fclose(file);
+		std::fclose(file);
 		return content;
 	}
 
