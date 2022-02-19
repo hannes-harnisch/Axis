@@ -8,20 +8,35 @@
 
 namespace ax
 {
+	struct SourceLocation
+	{
+		unsigned line	= 0;
+		unsigned column = 0;
+	};
+
 	class Reporter
 	{
 	public:
-		template<typename... Ts> void report(std::type_identity_t<MessageCodeCheck<Ts...>> code, Ts&&... ts)
+		template<Message MSG, typename... Ts> void report(SourceLocation loc, Ts&&... ts)
 		{
-			report(code, std::format(get_format(code), std::forward<Ts>(ts)...));
+			static_assert(check_message<Ts...>(MSG), "Number of arguments does not match required arguments for this message.");
+			write(MSG, loc, std::format(get_format(MSG), std::forward<Ts>(ts)...));
 		}
 
 		void set_output(std::string_view file_path);
-		bool has_message(MessageCode code) const;
+		void set_warnings_as_errors();
+		bool has_message(Message msg) const;
 
 	private:
-		std::vector<Message> messages;
+		struct MessageText
+		{
+			Message		msg;
+			std::string text;
+		};
 
-		void report(MessageCode code, std::string text);
+		std::vector<MessageText> messages;
+		bool					 warnings_as_errors = false;
+
+		void write(Message msg, SourceLocation loc, std::string text);
 	};
 }

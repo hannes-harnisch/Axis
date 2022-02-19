@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Axis/Lex/Token.hpp"
+#include "Axis/Core/Reporter.hpp"
+#include "Axis/Lex/TokenStream.hpp"
 
 #include <string>
-#include <vector>
 
 namespace ax
 {
-	std::vector<Token> lex(std::string const& file_content);
+	TokenStream lex(std::string const& file_content, Reporter& reporter);
 }

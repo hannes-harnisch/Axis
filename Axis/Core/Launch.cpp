@@ -6,19 +6,19 @@
 
 namespace ax
 {
-	ExitCode compile(Span<std::string_view> args)
+	ExitCode compile(Span<std::string_view> args, Reporter& reporter)
 	{
-		return translate(args[0]);
+		return translate(args[0], reporter);
 	}
 
-	ExitCode launch(Span<std::string_view> args, Reporter&)
+	ExitCode launch(Span<std::string_view> args, Reporter& reporter)
 	{
 		if(args.empty())
 		{
 			std::printf("No parameters specified.");
 			return ExitCode::Usage;
 		}
-		return compile(args);
+		return compile(args, reporter);
 	}
 }
 

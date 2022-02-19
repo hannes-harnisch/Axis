@@ -1,32 +1,37 @@
 #pragma once
 
-#include <string>
+#include <cstdint>
 
 namespace ax
 {
-	enum class MessageCode
+	enum class Message
 	{
+		IllegalChar,
+		UnterminatedString,
+		StringLiteralTooLong,
 	};
 
-	struct Message
+	consteval char const* get_format(Message msg)
 	{
-		MessageCode code;
-		std::string text;
-	};
+		using enum Message;
+		switch(msg)
+		{
+			case IllegalChar: return "Illegal character '{}'.";
+			case UnterminatedString: return "Unterminated string.";
+			case StringLiteralTooLong: return "String literal is too long, embed the string as a text asset instead.";
+		}
+	}
 
-	enum class Severity
+	template<typename... Ts> consteval bool check_message(Message msg)
 	{
-		Note,
-		Warning,
-		Error
-	};
+		size_t count = 0;
 
-	Severity	get_severity(MessageCode code);
-	char const* get_format(MessageCode code);
+		auto format = get_format(msg);
+		while(*format)
+			if(*format++ == '{')
+				if(*format++ == '}')
+					++count;
 
-	template<typename... Ts> struct MessageCodeCheck
-	{
-		consteval MessageCodeCheck(MessageCode code)
-		{}
-	};
+		return count == sizeof...(Ts);
+	}
 }

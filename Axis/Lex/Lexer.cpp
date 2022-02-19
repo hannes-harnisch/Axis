@@ -22,8 +22,8 @@ namespace ax
 		using enum TokenKind;
 		static_assert(std::to_underlying(LBrace) == 5);
 		static_assert(std::to_underlying(Meta) == 32);
-		static_assert(std::to_underlying(Spaceship) == 55);
-		static_assert(std::to_underlying(EndOfFile) == 122, "You changed the TokenKind enum, but you need to change this "
+		static_assert(std::to_underlying(Spaceship) == 56);
+		static_assert(std::to_underlying(EndOfFile) == 124, "You changed the TokenKind enum, but you need to change this "
 															"lookup table computation to adapt to your changes.");
 		for(auto i = LBrace; i != Meta; increment(i))
 			_[i] = 1;
@@ -40,30 +40,52 @@ namespace ax
 		return _;
 	}();
 
+	bool is_digit(char ch)
+	{
+		return ch >= '0' && ch <= '9';
+	}
+
+	bool is_whitespace(char ch)
+	{
+		switch(ch)
+		{
+			case ' ':
+			case '\t':
+			case '\r':
+			case '\n': return true;
+		}
+		return false;
+	}
+
 	class Lexer
 	{
+		using enum TokenKind;
+
 		std::string::const_iterator begin;
-		std::string::const_iterator current;
+		std::string::const_iterator cursor;
 		std::string::const_iterator end;
+		Reporter&					reporter;
 
 	public:
-		Lexer(std::string const& file_content) : begin(file_content.begin()), current(begin), end(file_content.end())
+		Lexer(std::string const& source, Reporter& reporter) :
+			begin(source.begin()), cursor(begin), end(source.end()), reporter(reporter)
 		{}
 
-		std::vector<Token> lex()
+		TokenStream lex()
 		{
-			std::vector<Token> tokens;
-			while(current != end)
+			TokenStream tokens;
+			while(cursor != end)
 			{
-				uint32_t offset		= get_offset();
-				auto [kind, length] = next_token();
-				tokens.emplace_back(kind, length, offset);
+				uint32_t offset = get_offset();
+				auto	 token	= next_token();
+				if(token)
+					tokens.append({token->kind, token->length, offset});
 			}
 
-			tokens.emplace_back(Token {
+			tokens.append({
 				.kind	= TokenKind::EndOfFile,
 				.length = 0,
-				.offset = get_offset(),
+				.offset = 0,
 			});
 			return tokens;
 		}
@@ -71,74 +93,140 @@ namespace ax
 	private:
 		struct UnplacedToken
 		{
-			TokenKind kind	 = TokenKind::Name;
-			uint16_t  length = TOKEN_LENGTHS[kind];
+			TokenKind kind;
+			uint16_t  length;
+
+			UnplacedToken(TokenKind kind) : kind(kind), length(TOKEN_LENGTHS[kind])
+			{}
+
+			UnplacedToken(TokenKind kind, uint16_t length) : kind(kind), length(length)
+			{}
 		};
 
-		using enum TokenKind;
-
-		UnplacedToken next_token()
+		std::optional<UnplacedToken> next_token()
 		{
-			switch(*current++)
+			char character = *cursor++;
+			switch(character)
 			{
-				case '{': return {LBrace};
-				case '}': return {RBrace};
-				case '(': return {LParen};
-				case ')': return {RParen};
-				case '[': return {LBracket};
-				case ']': return {RBracket};
-				case ';': return {Semicolon};
-				case ',': return {Comma};
+				case ' ':
+				case '\t':
+				case '\r':
+				case '\n': break;
+				case '{': return LBrace;
+				case '}': return RBrace;
+				case '(': return LParen;
+				case ')': return RParen;
+				case '[': return LBracket;
+				case ']': return RBracket;
+				case '#': return consume_comment();
+				case ';': return Semicolon;
+				case ',': return Comma;
+				case '.': return match_dot();
+				case ':': return match_colon();
 				case '=': return match_equal();
 				case '+': return match_plus();
 				case '-': return match_minus();
 				case '*': return match_star();
 				case '/': return match_slash();
+				case '!': return match_exclamation();
+				case '&': return match_and();
+				case '|': return match_or();
+				case '^': return Pointer;
+				case '@': return Address;
 				case '<': return match_left_angle();
 				case '>': return match_right_angle();
+				case '?': return Maybe;
+				case '%': return match_percent();
+				case '~': return match_tilde();
+				case '"': return consume_string();
+				case '$': return Macro;
+				// case '\\': return consume_escaped_name();
+				default:
+					if(is_digit(character))
+						return consume_number(character);
+					else
+						on_illegal_char();
 			}
+			return {};
 		}
 
 		bool match(char expected)
 		{
-			if(current == end)
+			if(cursor == end)
 				return false;
 
-			if(*current != expected)
+			if(*cursor != expected)
 				return false;
 
-			++current;
+			++cursor;
 			return true;
+		}
+
+		UnplacedToken consume_comment()
+		{
+			auto comment_begin = cursor;
+			while(*cursor++ != '\n')
+			{}
+
+			auto length = static_cast<uint16_t>(cursor - comment_begin);
+			return {Comment, length};
+		}
+
+		UnplacedToken match_dot()
+		{
+			if(match('.'))
+			{
+				if(match('.'))
+					return Unpack;
+				else if(match('='))
+					return RangeInclusive;
+				else
+					return Range;
+			}
+			else if(is_digit(*cursor))
+				return consume_number('.');
+			else
+				return Dot;
+		}
+
+		UnplacedToken match_colon()
+		{
+			if(match(':'))
+				return Meta;
+			else
+				return Colon;
 		}
 
 		UnplacedToken match_equal()
 		{
 			if(match('='))
-				return {Equal};
+				return Equal;
 			else if(match('>'))
-				return {Conversion};
+				return Conversion;
 			else
-				return {Assign};
+				return Assign;
 		}
 
 		UnplacedToken match_plus()
 		{
 			if(match('+'))
-				return {Increment};
+				return Increment;
 			else if(match('='))
-				return {AddAssign};
+				return AddAssign;
 			else
-				return {Plus};
+				return Plus;
 		}
 
 		UnplacedToken match_minus()
 		{
-			if(match('-'))
-				return {Decrement};
+			if(match('>'))
+				return Arrow;
+			else if(match('-'))
+				return Decrement;
 			else if(match('='))
-				return {SubAssign};
+				return SubAssign;
 			else
-				return {Minus};
+				return Minus;
 		}
 
 		UnplacedToken match_star()
@@ -146,14 +234,14 @@ namespace ax
 			if(match('*'))
 			{
 				if(match('='))
-					return {PowAssign};
+					return PowAssign;
 				else
-					return {Pow};
+					return Pow;
 			}
 			else if(match('='))
-				return {MulAssign};
+				return MulAssign;
 			else
-				return {Mul};
+				return Mul;
 		}
 
 		UnplacedToken match_slash()
@@ -161,14 +249,42 @@ namespace ax
 			if(match('/'))
 			{
 				if(match('='))
-					return {FloorDivAssign};
+					return FloorDivAssign;
 				else
-					return {FloorDiv};
+					return FloorDiv;
 			}
 			else if(match('='))
-				return {DivAssign};
+				return DivAssign;
 			else
-				return {Div};
+				return Div;
+		}
+
+		UnplacedToken match_exclamation()
+		{
+			if(match('='))
+				return Inequal;
+			else
+				return LogicNot;
+		}
+
+		UnplacedToken match_and()
+		{
+			if(match('&'))
+				return LogicAnd;
+			else if(match('='))
+				return AndAssign;
+			else
+				return BitAnd;
+		}
+
+		UnplacedToken match_or()
+		{
+			if(match('|'))
+				return LogicOr;
+			else if(match('='))
+				return OrAssign;
+			else
+				return BitOr;
 		}
 
 		UnplacedToken match_left_angle()
@@ -176,19 +292,19 @@ namespace ax
 			if(match('<'))
 			{
 				if(match('='))
-					return {LShiftAssign};
+					return LShiftAssign;
 				else
-					return {LShift};
+					return LShift;
 			}
 			else if(match('='))
 			{
 				if(match('>'))
-					return {Spaceship};
+					return Spaceship;
 				else
-					return {LessEq};
+					return LessEq;
 			}
 			else
-				return {Less};
+				return Less;
 		}
 
 		UnplacedToken match_right_angle()
@@ -196,24 +312,109 @@ namespace ax
 			if(match('>'))
 			{
 				if(match('='))
-					return {RShiftAssign};
+					return RShiftAssign;
 				else
-					return {RShift};
+					return RShift;
 			}
 			else if(match('='))
-				return {GreaterEq};
+				return GreaterEq;
 			else
-				return {Greater};
+				return Greater;
+		}
+
+		UnplacedToken match_percent()
+		{
+			if(match('='))
+				return ModAssign;
+			else
+				return Mod;
+		}
+
+		UnplacedToken match_tilde()
+		{
+			if(match('='))
+				return XorAssign;
+			else
+				return Tilde;
+		}
+
+		UnplacedToken consume_string()
+		{
+			auto string_begin = cursor;
+			char ch			  = *cursor++;
+
+			while(true)
+			{
+				if(ch == '"')
+					break;
+
+				if(ch == '\n')
+				{
+					report<Message::UnterminatedString>();
+					break;
+				}
+				ch = *cursor++;
+			}
+
+			auto length = ++cursor - string_begin;
+			if(length > UINT16_MAX)
+				report<Message::StringLiteralTooLong>();
+
+			return {String, static_cast<uint16_t>(length)};
+		}
+
+		UnplacedToken consume_number(char first)
+		{
+			auto number_begin = cursor - 1;
+
+			auto kind = Integer; // TODO: ALL OF THIS
+			char ch	  = *cursor++;
+
+			switch(first)
+			{}
+
+			while(is_digit(ch) || is_whitespace(ch))
+				ch = *cursor++;
+
+			return {kind, static_cast<uint16_t>(cursor - number_begin)};
+		}
+
+		void on_illegal_char() const
+		{
+			report<Message::IllegalChar>(cursor[-1]);
 		}
 
 		uint32_t get_offset() const
 		{
-			return static_cast<uint32_t>(current - begin);
+			return static_cast<uint32_t>(cursor - begin);
+		}
+
+		template<Message MSG, typename... Ts> void report(Ts&&... ts) const
+		{
+			reporter.report<MSG>(locate(), std::forward<Ts>(ts)...);
+		}
+
+		SourceLocation locate() const
+		{
+			auto locator = begin;
+
+			unsigned line = 1, column = 0;
+			while(locator != cursor)
+			{
+				char ch = *locator++;
+				++column;
+				if(ch == '\n')
+				{
+					++line;
+					column = 0;
+				}
+			}
+			return {line, column};
 		}
 	};
 
-	std::vector<Token> lex(std::string const& file_content)
+	TokenStream lex(std::string const& source, Reporter& reporter)
 	{
-		return Lexer(file_content).lex();
+		return Lexer(source, reporter).lex();
 	}
 }

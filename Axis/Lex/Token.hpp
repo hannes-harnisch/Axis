@@ -48,6 +48,7 @@ namespace ax
 		Meta,
 		Arrow,
 		Conversion,
+		Range,
 		Increment,
 		Decrement,
 		LogicAnd,
@@ -71,7 +72,8 @@ namespace ax
 
 		// Three-character tokens
 		Spaceship,
-		Ellipsis,
+		Unpack,
+		RangeInclusive,
 		PowAssign,
 		FloorDivAssign,
 		LShiftAssign,
@@ -149,9 +151,6 @@ namespace ax
 		uint16_t  length = 0;
 		uint32_t  offset = 0;
 
-		std::string_view get_view(std::string_view source) const
-		{
-			return {&source[offset], length};
-		}
+		std::string_view to_string(std::string_view source) const;
 	};
 }

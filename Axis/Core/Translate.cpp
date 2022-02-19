@@ -3,6 +3,8 @@
 #include "Axis/Lex/Lexer.hpp"
 #include "Translate.hpp"
 
+#include <iostream> // TODO::remove
+
 namespace ax
 {
 	std::optional<std::string> get_file_content(std::string_view path_text)
@@ -23,16 +25,17 @@ namespace ax
 		std::fread(content.data(), size, 1, file);
 
 		std::fclose(file);
-		return content;
+		return content += '\n';
 	}
 
-	ExitCode translate(std::string_view path)
+	ExitCode translate(std::string_view path, Reporter& reporter)
 	{
 		auto file_content = get_file_content(path);
 		if(!file_content)
 			return ExitCode::NoInput;
 
-		auto tokens = lex(*file_content);
+		auto tokens = lex(*file_content, reporter);
+		std::cout << tokens.to_string(*file_content);
 		return ExitCode::Ok;
 	}
 }
