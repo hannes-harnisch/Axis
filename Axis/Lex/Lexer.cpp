@@ -1,5 +1,6 @@
 #include "PCH.hpp"
 
+#include "Axis/Util/Char.hpp"
 #include "Lexer.hpp"
 
 namespace ax
@@ -40,35 +41,19 @@ namespace ax
 		return _;
 	}();
 
-	bool is_digit(char ch)
-	{
-		return ch >= '0' && ch <= '9';
-	}
-
-	bool is_whitespace(char ch)
-	{
-		switch(ch)
-		{
-			case ' ':
-			case '\t':
-			case '\r':
-			case '\n': return true;
-		}
-		return false;
-	}
-
 	class Lexer
 	{
 		using enum TokenKind;
 
-		std::string::const_iterator begin;
-		std::string::const_iterator cursor;
-		std::string::const_iterator end;
-		Reporter&					reporter;
+		Source const&					  source;
+		std::string::const_iterator const begin;
+		std::string::const_iterator const end;
+		std::string::const_iterator		  cursor;
+		Reporter&						  reporter;
 
 	public:
-		Lexer(std::string const& source, Reporter& reporter) :
-			begin(source.begin()), cursor(begin), end(source.end()), reporter(reporter)
+		Lexer(Source const& source, Reporter& reporter) :
+			source(source), begin(source.begin()), end(source.end()), cursor(begin), reporter(reporter)
 		{}
 
 		TokenStream lex()
@@ -391,29 +376,11 @@ namespace ax
 
 		template<Message MSG, typename... Ts> void report(Ts&&... ts) const
 		{
-			reporter.report<MSG>(locate(), std::forward<Ts>(ts)...);
-		}
-
-		SourceLocation locate() const
-		{
-			auto locator = begin;
-
-			unsigned line = 1, column = 0;
-			while(locator != cursor)
-			{
-				char ch = *locator++;
-				++column;
-				if(ch == '\n')
-				{
-					++line;
-					column = 0;
-				}
-			}
-			return {line, column};
+			reporter.report<MSG>(source.locate(cursor), std::forward<Ts>(ts)...);
 		}
 	};
 
-	TokenStream lex(std::string const& source, Reporter& reporter)
+	TokenStream lex(Source const& source, Reporter& reporter)
 	{
 		return Lexer(source, reporter).lex();
 	}

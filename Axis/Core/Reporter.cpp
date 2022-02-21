@@ -1,5 +1,7 @@
 #include "PCH.hpp"
 
+#include "Axis/Util/Char.hpp"
+#include "Axis/Util/Enum.hpp"
 #include "Reporter.hpp"
 
 namespace ax
@@ -18,7 +20,14 @@ namespace ax
 		return Severity::Error;
 	}
 
-	void Reporter::set_output(std::string_view)
+	std::string to_string(Severity severity)
+	{
+		std::string name(enum_name(severity));
+		name[0] = to_lower(name[0]);
+		return name;
+	}
+
+	Reporter::Reporter() : output(stdout)
 	{}
 
 	void Reporter::set_warnings_as_errors()
@@ -28,15 +37,25 @@ namespace ax
 
 	bool Reporter::has_message(Message msg) const
 	{
-		auto it = std::find_if(messages.begin(), messages.end(), [=](MessageText const& txt) {
-			return txt.msg == msg;
+		auto it = std::find_if(messages.begin(), messages.end(), [=](WrittenMessage const& written) {
+			return written.msg == msg;
 		});
 		return it != messages.end();
 	}
 
+	errno_t Reporter::set_output(std::string_view path)
+	{
+		return fopen_s(std::out_ptr(output), path.data(), "w");
+	}
+
 	void Reporter::write(Message msg, SourceLocation loc, std::string text)
 	{
-		if(warnings_as_errors)
-			;
+		auto severity = get_severity(msg);
+		if(warnings_as_errors && severity == Severity::Warning)
+			severity = Severity::Error;
+
+		auto severity_str = to_string(severity);
+		std::fprintf(output.get(), "%s:%u:%u: %s: %s\n", loc.file.data(), loc.line, loc.column, severity_str.data(),
+					 text.data());
 	}
 }

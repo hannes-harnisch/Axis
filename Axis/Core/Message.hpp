@@ -16,9 +16,9 @@ namespace ax
 		using enum Message;
 		switch(msg)
 		{
-			case IllegalChar: return "Illegal character '{}'.";
-			case UnterminatedString: return "Unterminated string.";
-			case StringLiteralTooLong: return "String literal is too long, embed the string as a text asset instead.";
+			case IllegalChar: return "illegal character '{}'";
+			case UnterminatedString: return "unterminated string";
+			case StringLiteralTooLong: return "string literal is too long, embed the string as a text asset instead";
 		}
 	}
 
