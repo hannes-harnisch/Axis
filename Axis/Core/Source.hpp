@@ -18,6 +18,7 @@ namespace ax
 		Iterator		 begin() const;
 		Iterator		 end() const;
 		SourceLocation	 locate(Iterator cursor) const;
+		std::string_view get_text() const;
 		std::string_view get_path() const;
 
 	private:

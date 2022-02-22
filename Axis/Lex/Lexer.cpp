@@ -5,6 +5,8 @@
 
 namespace ax
 {
+	using enum TokenKind;
+
 	constexpr uint16_t get_keyword_length(TokenKind kind)
 	{
 		constexpr int PREFIX_LENGTH = 2;
@@ -20,7 +22,6 @@ namespace ax
 			kind = static_cast<TokenKind>(static_cast<uint8_t>(kind) + 1);
 		};
 
-		using enum TokenKind;
 		static_assert(std::to_underlying(LBrace) == 5);
 		static_assert(std::to_underlying(Meta) == 32);
 		static_assert(std::to_underlying(Spaceship) == 56);
@@ -41,10 +42,42 @@ namespace ax
 		return _;
 	}();
 
+	const std::unordered_map<std::string, TokenKind> KEYWORD_MAP {
+		{"int", KwInt},			  {"int8", KwInt8},
+		{"int16", KwInt16},		  {"int32", KwInt32},
+		{"int64", KwInt64},		  {"int128", KwInt128},
+		{"uint", KwUInt},		  {"uint8", KwUInt8},
+		{"uint16", KwUInt16},	  {"uint32", KwUInt32},
+		{"uint64", KwUInt64},	  {"uint128", KwUInt128},
+		{"float", KwFloat},		  {"float16", KwFloat16},
+		{"float32", KwFloat32},	  {"float64", KwFloat64},
+		{"float128", KwFloat128}, {"floatX", KwFloatX},
+		{"byte", KwByte},		  {"char", KwChar},
+		{"bool", KwBool},		  {"if", KwIf},
+		{"else", KwElse},		  {"when", KwWhen},
+		{"for", KwFor},			  {"do", KwDo},
+		{"while", KwWhile},		  {"break", KwBreak},
+		{"continue", KwContinue}, {"return", KwReturn},
+		{"yield", KwYield},		  {"async", KwAsync},
+		{"await", KwAwait},		  {"try", KwTry},
+		{"catch", KwCatch},		  {"throw", KwThrow},
+		{"tuple", KwTuple},		  {"class", KwClass},
+		{"concept", KwConcept},	  {"enum", KwEnum},
+		{"union", KwUnion},		  {"operator", KwOperator},
+		{"out", KwOut},			  {"in", KwIn},
+		{"pack", KwPack},		  {"family", KwFamily},
+		{"friend", KwFriend},	  {"virtual", KwVirtual},
+		{"override", KwOverride}, {"final", KwFinal},
+		{"static", KwStatic},	  {"let", KwLet},
+		{"var", KwVar},			  {"const", KwConst},
+		{"uninit", KwUninit},	  {"own", KwOwn},
+		{"copy", KwCopy},		  {"true", KwTrue},
+		{"false", KwFalse},		  {"null", KwNull},
+		{"this", KwThis},
+	};
+
 	class Lexer
 	{
-		using enum TokenKind;
-
 		Source const&					  source;
 		std::string::const_iterator const begin;
 		std::string::const_iterator const end;
@@ -103,7 +136,7 @@ namespace ax
 				case ')': return RParen;
 				case '[': return LBracket;
 				case ']': return RBracket;
-				case '#': return consume_comment();
+				case '#': return lex_comment();
 				case ';': return Semicolon;
 				case ',': return Comma;
 				case '.': return match_dot();
@@ -123,12 +156,14 @@ namespace ax
 				case '?': return Maybe;
 				case '%': return match_percent();
 				case '~': return match_tilde();
-				case '"': return consume_string();
+				case '"': return lex_string();
 				case '$': return Macro;
-				// case '\\': return consume_escaped_name();
+				case '\\': return lex_escaped_keyword();
 				default:
-					if(is_digit(character))
-						return consume_number(character);
+					if(can_begin_names(character))
+						return lex_word();
+					else if(is_dec_digit(character))
+						return lex_number(character);
 					else
 						on_illegal_char();
 			}
@@ -147,7 +182,7 @@ namespace ax
 			return true;
 		}
 
-		UnplacedToken consume_comment()
+		UnplacedToken lex_comment()
 		{
 			auto comment_begin = cursor;
 			while(*cursor++ != '\n')
@@ -168,8 +203,8 @@ namespace ax
 				else
 					return Range;
 			}
-			else if(is_digit(*cursor))
-				return consume_number('.');
+			else if(is_dec_digit(*cursor))
+				return lex_number('.');
 			else
 				return Dot;
 		}
@@ -323,7 +358,7 @@ namespace ax
 				return Tilde;
 		}
 
-		UnplacedToken consume_string()
+		UnplacedToken lex_string()
 		{
 			auto string_begin = cursor;
 			char ch			  = *cursor++;
@@ -343,25 +378,89 @@ namespace ax
 
 			auto length = ++cursor - string_begin;
 			if(length > UINT16_MAX)
-				report<Message::StringLiteralTooLong>();
+				report<Message::LiteralTooLong>();
 
 			return {String, static_cast<uint16_t>(length)};
 		}
 
-		UnplacedToken consume_number(char first)
+		UnplacedToken lex_word()
+		{
+			auto name_begin = --cursor;
+			while(is_word_char(*++cursor))
+			{}
+
+			auto it	  = KEYWORD_MAP.find(std::string(name_begin, cursor));
+			auto kind = it == KEYWORD_MAP.end() ? Name : it->second;
+
+			auto length = cursor - name_begin;
+			if(length > UINT16_MAX)
+				report<Message::NameTooLong>();
+
+			return {kind, static_cast<uint16_t>(length)};
+		}
+
+		UnplacedToken lex_escaped_keyword()
+		{
+			auto name_begin = --cursor;
+			while(is_word_char(*++cursor))
+			{}
+
+			std::string_view kw(name_begin, cursor);
+
+			auto it = KEYWORD_MAP.find(std::string(kw));
+			if(it == KEYWORD_MAP.end())
+				report<Message::EscapedNonKeyword>(kw);
+
+			return {Name, static_cast<uint16_t>(cursor - name_begin)};
+		}
+
+		UnplacedToken lex_number(char first)
 		{
 			auto number_begin = cursor - 1;
 
-			auto kind = Integer; // TODO: ALL OF THIS
-			char ch	  = *cursor++;
+			auto kind = Integer;
+			determine_number_literal_kind(kind, first);
 
-			switch(first)
-			{}
+			auto length = cursor - number_begin;
+			if(length > UINT16_MAX)
+				report<Message::LiteralTooLong>();
 
-			while(is_digit(ch) || is_whitespace(ch))
+			return {kind, static_cast<uint16_t>(length)};
+		}
+
+		void determine_number_literal_kind(TokenKind& kind, char first)
+		{
+			if(first == '.')
+			{
+				kind = Rational;
+				traverse_number_literal<is_dec_digit>();
+				return;
+			}
+			else if(first == '0')
+			{
+				switch(*cursor)
+				{
+					case 'x': return traverse_number_literal<is_hex_digit>();
+					case 'b': return traverse_number_literal<is_bin_digit>();
+					case 'o': return traverse_number_literal<is_oct_digit>();
+				}
+			}
+
+			char ch;
+			do
+			{
 				ch = *cursor++;
+				if(ch == '.')
+					kind = Rational;
+			} while(is_dec_digit(ch) || is_whitespace(ch));
+		}
 
-			return {kind, static_cast<uint16_t>(cursor - number_begin)};
+		template<bool (*CHAR_PREDICATE)(char)> void traverse_number_literal()
+		{
+			char ch;
+			do
+				ch = *cursor++;
+			while(CHAR_PREDICATE(ch) || is_whitespace(ch));
 		}
 
 		void on_illegal_char() const

@@ -24,7 +24,7 @@ namespace ax
 		using Base::Base;
 
 		MutSpan(T const&&) = delete;
-		MutSpan(T const& object) noexcept : Base(&object, 1)
+		MutSpan(T& object) noexcept : Base(&object, 1)
 		{}
 	};
 }

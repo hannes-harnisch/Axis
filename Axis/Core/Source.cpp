@@ -61,6 +61,11 @@ namespace ax
 		return {path, line, column};
 	}
 
+	std::string_view Source::get_text() const
+	{
+		return text;
+	}
+
 	std::string_view Source::get_path() const
 	{
 		return path;

@@ -2,8 +2,13 @@
 
 namespace ax
 {
-	bool is_digit(char ch);
-	bool is_whitespace(char ch);
 	char to_upper(char ch);
 	char to_lower(char ch);
+	bool is_whitespace(char ch);
+	bool is_word_char(char ch);
+	bool can_begin_names(char ch);
+	bool is_dec_digit(char ch);
+	bool is_hex_digit(char ch);
+	bool is_oct_digit(char ch);
+	bool is_bin_digit(char ch);
 }
