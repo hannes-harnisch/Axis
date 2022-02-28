@@ -4,8 +4,6 @@
 #include "Axis/Core/Source.hpp"
 #include "Axis/Lex/TokenStream.hpp"
 
-#include <string>
-
 namespace ax
 {
 	TokenStream lex(Source const& source, Reporter& reporter);

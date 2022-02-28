@@ -9,6 +9,7 @@ workspace 'Axis'
 	cppdialect			'C++latest'
 	cdialect			'C11'
 	conformancemode		'On'
+	exceptionhandling	'Off'
 	warnings			'Extra'
 	disablewarnings		'4201' -- anonymous structs
 	floatingpoint		'Fast'

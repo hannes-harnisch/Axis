@@ -27,7 +27,7 @@ namespace ax
 		return name;
 	}
 
-	Reporter::Reporter() : output(stdout)
+	Reporter::Reporter(std::FILE* file) : output(file)
 	{}
 
 	void Reporter::set_warnings_as_errors()
@@ -35,11 +35,11 @@ namespace ax
 		warnings_as_errors = true;
 	}
 
-	bool Reporter::has_message(Message msg) const
+	bool Reporter::has_message(Message msg, SourceLocation loc, FormatArgs args) const
 	{
-		auto it = std::find_if(messages.begin(), messages.end(), [=](WrittenMessage const& written) {
-			return written.msg == msg;
-		});
+		WrittenMessage target(msg, loc, std::vformat(get_format(msg), args));
+
+		auto it = std::find(messages.begin(), messages.end(), target);
 		return it != messages.end();
 	}
 
@@ -48,14 +48,16 @@ namespace ax
 		return fopen_s(std::out_ptr(output), path.data(), "w");
 	}
 
-	void Reporter::write(Message msg, SourceLocation loc, std::string text)
+	void Reporter::write(Message msg, SourceLocation loc, std::string_view format, FormatArgs args)
 	{
 		auto severity = get_severity(msg);
 		if(warnings_as_errors && severity == Severity::Warning)
 			severity = Severity::Error;
 
-		auto severity_str = to_string(severity);
-		std::fprintf(output.get(), "%s:%u:%u: %s: %s\n", loc.file.data(), loc.line, loc.column, severity_str.data(),
-					 text.data());
+		auto text = std::vformat(format, args);
+		auto sev  = to_string(severity);
+		std::fprintf(output.get(), "%s:%u:%u: %s: %s\n", loc.file.data(), loc.line, loc.column, sev.data(), text.data());
+
+		messages.emplace_back(msg, loc, std::move(text));
 	}
 }

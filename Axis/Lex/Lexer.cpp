@@ -33,56 +33,107 @@ namespace ax
 		for(auto i = Meta; i != Spaceship; increment(i))
 			_[i] = 2;
 
-		for(auto i = Spaceship; i != KwInt; increment(i))
+		for(auto i = Spaceship; i != KwI8; increment(i))
 			_[i] = 3;
 
-		for(auto i = KwInt; i != EndOfFile; increment(i))
+		for(auto i = KwI8; i != EndOfFile; increment(i))
 			_[i] = get_keyword_length(i);
 
 		return _;
 	}();
 
-	const std::unordered_map<std::string, TokenKind> KEYWORD_MAP {
-		{"int", KwInt},			  {"int8", KwInt8},
-		{"int16", KwInt16},		  {"int32", KwInt32},
-		{"int64", KwInt64},		  {"int128", KwInt128},
-		{"uint", KwUInt},		  {"uint8", KwUInt8},
-		{"uint16", KwUInt16},	  {"uint32", KwUInt32},
-		{"uint64", KwUInt64},	  {"uint128", KwUInt128},
-		{"float", KwFloat},		  {"float16", KwFloat16},
-		{"float32", KwFloat32},	  {"float64", KwFloat64},
-		{"float128", KwFloat128}, {"floatX", KwFloatX},
-		{"byte", KwByte},		  {"char", KwChar},
-		{"bool", KwBool},		  {"if", KwIf},
-		{"else", KwElse},		  {"when", KwWhen},
-		{"for", KwFor},			  {"do", KwDo},
-		{"while", KwWhile},		  {"break", KwBreak},
-		{"continue", KwContinue}, {"return", KwReturn},
-		{"yield", KwYield},		  {"async", KwAsync},
-		{"await", KwAwait},		  {"try", KwTry},
-		{"catch", KwCatch},		  {"throw", KwThrow},
-		{"tuple", KwTuple},		  {"class", KwClass},
-		{"concept", KwConcept},	  {"enum", KwEnum},
-		{"union", KwUnion},		  {"operator", KwOperator},
-		{"out", KwOut},			  {"in", KwIn},
-		{"pack", KwPack},		  {"family", KwFamily},
-		{"friend", KwFriend},	  {"virtual", KwVirtual},
-		{"override", KwOverride}, {"final", KwFinal},
-		{"static", KwStatic},	  {"let", KwLet},
-		{"var", KwVar},			  {"const", KwConst},
-		{"uninit", KwUninit},	  {"own", KwOwn},
-		{"copy", KwCopy},		  {"true", KwTrue},
-		{"false", KwFalse},		  {"null", KwNull},
+	struct StringHash
+	{
+		using is_transparent = void;
+
+		size_t operator()(const char* txt) const
+		{
+			return std::hash<std::string_view> {}(txt);
+		}
+
+		size_t operator()(std::string_view txt) const
+		{
+			return std::hash<std::string_view> {}(txt);
+		}
+
+		size_t operator()(const std::string& txt) const
+		{
+			return std::hash<std::string> {}(txt);
+		}
+	};
+
+	std::unordered_map<std::string, TokenKind, StringHash, std::equal_to<>> const KEYWORDS {
+		{"i8", KwI8},
+		{"i16", KwI16},
+		{"i32", KwI32},
+		{"i64", KwI64},
+		{"i128", KwI128},
+		{"isize", KwISize},
+		{"u8", KwU8},
+		{"u16", KwU16},
+		{"u32", KwU32},
+		{"u64", KwU64},
+		{"u128", KwU128},
+		{"usize", KwUSize},
+		{"f16", KwF16},
+		{"f32", KwF32},
+		{"f64", KwF64},
+		{"f128", KwF128},
+		{"fsize", KwFSize},
+		{"byte", KwByte},
+		{"char", KwChar},
+		{"bool", KwBool},
+		{"if", KwIf},
+		{"else", KwElse},
+		{"when", KwWhen},
+		{"for", KwFor},
+		{"do", KwDo},
+		{"while", KwWhile},
+		{"break", KwBreak},
+		{"continue", KwContinue},
+		{"return", KwReturn},
+		{"yield", KwYield},
+		{"async", KwAsync},
+		{"await", KwAwait},
+		{"try", KwTry},
+		{"catch", KwCatch},
+		{"throw", KwThrow},
+		{"tuple", KwTuple},
+		{"class", KwClass},
+		{"concept", KwConcept},
+		{"enum", KwEnum},
+		{"union", KwUnion},
+		{"operator", KwOperator},
+		{"out", KwOut},
+		{"in", KwIn},
+		{"pack", KwPack},
+		{"family", KwFamily},
+		{"friend", KwFriend},
+		{"static", KwStatic},
+		{"dynamic", KwDynamic},
+		{"override", KwOverride},
+		{"final", KwFinal},
+		{"let", KwLet},
+		{"var", KwVar},
+		{"const", KwConst},
+		{"uninit", KwUninit},
+		{"own", KwOwn},
+		{"copy", KwCopy},
+		{"true", KwTrue},
+		{"false", KwFalse},
+		{"null", KwNull},
 		{"this", KwThis},
+		{"trust", KwTrust},
 	};
 
 	class Lexer
 	{
-		Source const&					  source;
-		std::string::const_iterator const begin;
-		std::string::const_iterator const end;
-		std::string::const_iterator		  cursor;
-		Reporter&						  reporter;
+		TokenStream			   tokens;
+		Source const&		   source;
+		Source::Iterator const begin;
+		Source::Iterator const end;
+		Source::Iterator	   cursor;
+		Reporter&			   reporter;
 
 	public:
 		Lexer(Source const& source, Reporter& reporter) :
@@ -91,21 +142,11 @@ namespace ax
 
 		TokenStream lex()
 		{
-			TokenStream tokens;
 			while(cursor != end)
-			{
-				uint32_t offset = get_offset();
-				auto	 token	= next_token();
-				if(token)
-					tokens.append({token->kind, token->length, offset});
-			}
+				next_token();
 
-			tokens.append({
-				.kind	= TokenKind::EndOfFile,
-				.length = 0,
-				.offset = 0,
-			});
-			return tokens;
+			tokens.append(TokenKind::EndOfFile, 0, 0);
+			return std::move(tokens);
 		}
 
 	private:
@@ -114,6 +155,8 @@ namespace ax
 			TokenKind kind;
 			uint16_t  length;
 
+			UnplacedToken() = default;
+
 			UnplacedToken(TokenKind kind) : kind(kind), length(TOKEN_LENGTHS[kind])
 			{}
 
@@ -121,53 +164,50 @@ namespace ax
 			{}
 		};
 
-		std::optional<UnplacedToken> next_token()
+		void next_token()
 		{
-			char character = *cursor++;
+			uint32_t offset	   = get_offset();
+			char	 character = *cursor++;
+
+			UnplacedToken tok;
 			switch(character)
 			{
 				case ' ':
 				case '\t':
 				case '\r':
-				case '\n': break;
-				case '{': return LBrace;
-				case '}': return RBrace;
-				case '(': return LParen;
-				case ')': return RParen;
-				case '[': return LBracket;
-				case ']': return RBracket;
-				case '#': return lex_comment();
-				case ';': return Semicolon;
-				case ',': return Comma;
-				case '.': return match_dot();
-				case ':': return match_colon();
-				case '=': return match_equal();
-				case '+': return match_plus();
-				case '-': return match_minus();
-				case '*': return match_star();
-				case '/': return match_slash();
-				case '!': return match_exclamation();
-				case '&': return match_and();
-				case '|': return match_or();
-				case '^': return Pointer;
-				case '@': return Address;
-				case '<': return match_left_angle();
-				case '>': return match_right_angle();
-				case '?': return Maybe;
-				case '%': return match_percent();
-				case '~': return match_tilde();
-				case '"': return lex_string();
-				case '$': return Macro;
-				case '\\': return lex_escaped_keyword();
-				default:
-					if(can_begin_names(character))
-						return lex_word();
-					else if(is_dec_digit(character))
-						return lex_number(character);
-					else
-						on_illegal_char();
+				case '\n': return;
+				case '{': tok = LBrace; break;
+				case '}': tok = RBrace; break;
+				case '(': tok = LParen; break;
+				case ')': tok = RParen; break;
+				case '[': tok = LBracket; break;
+				case ']': tok = RBracket; break;
+				case '#': return lex_comment(offset);
+				case ';': tok = Semicolon; break;
+				case ',': tok = Comma; break;
+				case '.': return match_dot(offset);
+				case ':': tok = match_colon(); break;
+				case '=': tok = match_equal(); break;
+				case '+': tok = match_plus(); break;
+				case '-': tok = match_minus(); break;
+				case '*': tok = match_star(); break;
+				case '/': tok = match_slash(); break;
+				case '!': tok = match_exclamation(); break;
+				case '&': tok = match_and(); break;
+				case '|': tok = match_or(); break;
+				case '^': tok = Pointer; break;
+				case '@': tok = Address; break;
+				case '<': tok = match_left_angle(); break;
+				case '>': tok = match_right_angle(); break;
+				case '?': tok = Maybe; break;
+				case '%': tok = match_percent(); break;
+				case '~': tok = match_tilde(); break;
+				case '"': return lex_string(offset);
+				case '$': tok = Macro; break;
+				case '\\': return lex_escaped_keyword(offset);
+				default: return on_alphanumeric(offset, character);
 			}
-			return {};
+			tokens.append(tok.kind, tok.length, offset);
 		}
 
 		bool match(char expected)
@@ -182,31 +222,152 @@ namespace ax
 			return true;
 		}
 
-		UnplacedToken lex_comment()
+		void on_alphanumeric(uint32_t offset, char character)
 		{
-			auto comment_begin = cursor;
+			if(can_begin_names(character))
+				lex_word(offset);
+			else if(is_dec_digit(character))
+				lex_number(offset, character);
+			else
+				on_illegal_char();
+		}
+
+		void lex_comment(uint32_t offset)
+		{
+			auto comment_begin = cursor - 1;
 			while(*cursor++ != '\n')
 			{}
 
-			auto length = static_cast<uint16_t>(cursor - comment_begin);
-			return {Comment, length};
+			auto length = cursor - comment_begin;
+			if(length > UINT16_MAX)
+				return report<Message::CommentTooLong>(comment_begin);
+
+			tokens.append(Comment, static_cast<uint16_t>(length), offset);
 		}
 
-		UnplacedToken match_dot()
+		void lex_string(uint32_t offset)
 		{
+			auto string_begin = cursor;
+
+			char ch = *cursor++;
+			while(true)
+			{
+				if(ch == '"')
+					break;
+
+				if(ch == '\n')
+				{
+					report<Message::UnterminatedString>(cursor - 1);
+					break;
+				}
+				ch = *cursor++;
+			}
+
+			auto length = cursor - string_begin + 1;
+			if(length > UINT16_MAX)
+				return report<Message::LiteralTooLong>(string_begin - 1);
+
+			tokens.append(String, static_cast<uint16_t>(length), offset);
+		}
+
+		void lex_word(uint32_t offset)
+		{
+			auto name_begin = --cursor;
+			while(is_word_char(*++cursor))
+			{}
+
+			std::string_view kw(name_begin, cursor);
+
+			auto it	  = KEYWORDS.find(kw);
+			auto kind = it == KEYWORDS.end() ? Name : it->second;
+
+			auto length = cursor - name_begin;
+			if(length > UINT16_MAX)
+				return report<Message::NameTooLong>(name_begin);
+
+			tokens.append(kind, static_cast<uint16_t>(length), offset);
+		}
+
+		void lex_escaped_keyword(uint32_t offset)
+		{
+			auto name_begin = cursor;
+			while(is_word_char(*cursor++))
+			{}
+
+			std::string_view kw(name_begin, --cursor);
+			if(KEYWORDS.find(kw) == KEYWORDS.end())
+				return report<Message::EscapedNonKeyword>(name_begin - 1, kw);
+
+			tokens.append(Name, static_cast<uint16_t>(kw.length()), offset);
+		}
+
+		void lex_number(uint32_t offset, char first)
+		{
+			auto number_begin = cursor - 1;
+
+			auto kind = Integer;
+			determine_number_literal_kind(kind, first);
+
+			auto length = --cursor - number_begin;
+			if(length > UINT16_MAX)
+				return report<Message::LiteralTooLong>(number_begin);
+
+			tokens.append(kind, static_cast<uint16_t>(length), offset);
+		}
+
+		void determine_number_literal_kind(TokenKind& kind, char first)
+		{
+			if(first == '.')
+			{
+				kind = Rational;
+				traverse_number_literal<is_dec_digit>();
+				return;
+			}
+			else if(first == '0')
+			{
+				switch(*cursor)
+				{
+					case 'x': return traverse_number_literal<is_hex_digit>();
+					case 'b': return traverse_number_literal<is_bin_digit>();
+					case 'o': return traverse_number_literal<is_oct_digit>();
+				}
+			}
+
+			char ch;
+			do
+			{
+				ch = *cursor++;
+				if(ch == '.')
+					kind = Rational;
+			} while(is_dec_digit(ch) || is_whitespace(ch));
+		}
+
+		template<bool (*CHAR_PREDICATE)(char)> void traverse_number_literal()
+		{
+			char ch;
+			do
+				ch = *cursor++;
+			while(CHAR_PREDICATE(ch) || is_whitespace(ch));
+		}
+
+		void match_dot(uint32_t offset)
+		{
+			UnplacedToken tok;
 			if(match('.'))
 			{
 				if(match('.'))
-					return Unpack;
+					tok = Unpack;
 				else if(match('='))
-					return RangeInclusive;
+					tok = RangeInclusive;
 				else
-					return Range;
+					tok = Range;
 			}
 			else if(is_dec_digit(*cursor))
-				return lex_number('.');
+				return lex_number(offset, '.');
 			else
-				return Dot;
+				tok = Dot;
+
+			tokens.append(tok.kind, tok.length, offset);
 		}
 
 		UnplacedToken match_colon()
@@ -358,114 +519,9 @@ namespace ax
 				return Tilde;
 		}
 
-		UnplacedToken lex_string()
-		{
-			auto string_begin = cursor;
-			char ch			  = *cursor++;
-
-			while(true)
-			{
-				if(ch == '"')
-					break;
-
-				if(ch == '\n')
-				{
-					report<Message::UnterminatedString>();
-					break;
-				}
-				ch = *cursor++;
-			}
-
-			auto length = ++cursor - string_begin;
-			if(length > UINT16_MAX)
-				report<Message::LiteralTooLong>();
-
-			return {String, static_cast<uint16_t>(length)};
-		}
-
-		UnplacedToken lex_word()
-		{
-			auto name_begin = --cursor;
-			while(is_word_char(*++cursor))
-			{}
-
-			auto it	  = KEYWORD_MAP.find(std::string(name_begin, cursor));
-			auto kind = it == KEYWORD_MAP.end() ? Name : it->second;
-
-			auto length = cursor - name_begin;
-			if(length > UINT16_MAX)
-				report<Message::NameTooLong>();
-
-			return {kind, static_cast<uint16_t>(length)};
-		}
-
-		UnplacedToken lex_escaped_keyword()
-		{
-			auto name_begin = --cursor;
-			while(is_word_char(*++cursor))
-			{}
-
-			std::string_view kw(name_begin, cursor);
-
-			auto it = KEYWORD_MAP.find(std::string(kw));
-			if(it == KEYWORD_MAP.end())
-				report<Message::EscapedNonKeyword>(kw);
-
-			return {Name, static_cast<uint16_t>(cursor - name_begin)};
-		}
-
-		UnplacedToken lex_number(char first)
-		{
-			auto number_begin = cursor - 1;
-
-			auto kind = Integer;
-			determine_number_literal_kind(kind, first);
-
-			auto length = cursor - number_begin;
-			if(length > UINT16_MAX)
-				report<Message::LiteralTooLong>();
-
-			return {kind, static_cast<uint16_t>(length)};
-		}
-
-		void determine_number_literal_kind(TokenKind& kind, char first)
-		{
-			if(first == '.')
-			{
-				kind = Rational;
-				traverse_number_literal<is_dec_digit>();
-				return;
-			}
-			else if(first == '0')
-			{
-				switch(*cursor)
-				{
-					case 'x': return traverse_number_literal<is_hex_digit>();
-					case 'b': return traverse_number_literal<is_bin_digit>();
-					case 'o': return traverse_number_literal<is_oct_digit>();
-				}
-			}
-
-			char ch;
-			do
-			{
-				ch = *cursor++;
-				if(ch == '.')
-					kind = Rational;
-			} while(is_dec_digit(ch) || is_whitespace(ch));
-		}
-
-		template<bool (*CHAR_PREDICATE)(char)> void traverse_number_literal()
-		{
-			char ch;
-			do
-				ch = *cursor++;
-			while(CHAR_PREDICATE(ch) || is_whitespace(ch));
-		}
-
 		void on_illegal_char() const
 		{
-			report<Message::IllegalChar>(cursor[-1]);
+			report<Message::IllegalChar>(cursor - 1, static_cast<int>(cursor[-1]));
 		}
 
 		uint32_t get_offset() const
@@ -473,9 +529,9 @@ namespace ax
 			return static_cast<uint32_t>(cursor - begin);
 		}
 
-		template<Message MSG, typename... Ts> void report(Ts&&... ts) const
+		template<Message MSG, typename... Ts> void report(Source::Iterator loc, Ts&&... ts) const
 		{
-			reporter.report<MSG>(source.locate(cursor), std::forward<Ts>(ts)...);
+			reporter.report<MSG>(source.locate(loc), std::forward<Ts>(ts)...);
 		}
 	};
 

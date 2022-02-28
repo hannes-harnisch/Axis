@@ -47,15 +47,14 @@ namespace ax
 	{
 		auto locator = text.begin();
 
-		unsigned line = 1, column = 0;
+		unsigned line = 1, column = 1;
 		while(locator != cursor)
 		{
-			char ch = *locator++;
 			++column;
-			if(ch == '\n')
+			if(*locator++ == '\n')
 			{
 				++line;
-				column = 0;
+				column = 1;
 			}
 		}
 		return {path, line, column};
