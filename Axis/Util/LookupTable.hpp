@@ -4,7 +4,8 @@
 
 namespace ax
 {
-	template<typename Key, typename Value, size_t COUNT = size_from_enum_max<Key>()> class LookupTable
+	template<typename Key, typename Value, size_t COUNT = size_from_enum_max<Key>()>
+	class LookupTable
 	{
 	public:
 		constexpr Value& operator[](Key key)

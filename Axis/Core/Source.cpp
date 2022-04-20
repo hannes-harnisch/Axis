@@ -17,11 +17,12 @@ namespace ax
 		long size = std::ftell(file.get());
 		std::fseek(file.get(), 0, SEEK_SET);
 
-		std::string content;
-		content.resize(size);
+		std::string content(size, '\0');
 		std::fread(content.data(), size, 1, file.get());
 
-		return content += '\n';
+		content += '\n'; // Add newline to break loops in lexer properly
+		content += '\f'; // Add form feed as extra buffering
+		return content;
 	}
 
 	std::optional<Source> Source::from(std::string_view path)

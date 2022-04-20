@@ -9,10 +9,9 @@ namespace ax
 	enum class Message
 	{
 		IllegalChar,
-		UnterminatedString,
-		NameTooLong,
-		LiteralTooLong,
-		CommentTooLong,
+		MissingClosingQuote,
+		StringTooLong,
+		TokenTooLong,
 		EscapedNonKeyword
 	};
 
@@ -22,10 +21,9 @@ namespace ax
 		switch(msg)
 		{
 			case IllegalChar: return "illegal character '{}'";
-			case UnterminatedString: return "unterminated string";
-			case NameTooLong: return "name is too long";
-			case LiteralTooLong: return "literal is too long, embed it as an asset instead";
-			case CommentTooLong: return "comment is too long";
+			case MissingClosingQuote: return "missing closing quote";
+			case StringTooLong: return "string is too long, embed it as an asset instead";
+			case TokenTooLong: return "token is too long";
 			case EscapedNonKeyword: return "{} is not a keyword that can be escaped";
 		}
 		return "";
@@ -33,7 +31,8 @@ namespace ax
 
 	// Determines whether the number of parameters in the parameter pack matches the number of placeholders in the format string
 	// associated with the message.
-	template<typename... Ts> consteval bool check_message(Message msg)
+	template<typename... Ts>
+	consteval bool check_message(Message msg)
 	{
 		size_t count = 0;
 

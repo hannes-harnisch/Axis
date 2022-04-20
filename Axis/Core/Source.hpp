@@ -15,14 +15,14 @@ namespace ax
 
 		static std::optional<Source> from(std::string_view path);
 
-		Iterator		 begin() const;
-		Iterator		 end() const;
-		SourceLocation	 locate(Iterator cursor) const;
+		Iterator begin() const;
+		Iterator end() const;
+		SourceLocation locate(Iterator cursor) const;
 		std::string_view get_text() const;
 		std::string_view get_path() const;
 
 	private:
-		std::string		 text;
+		std::string text;
 		std::string_view path;
 
 		Source(std::string text, std::string_view path);

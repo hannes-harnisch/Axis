@@ -23,35 +23,36 @@ TEST_CASE("IllegalChar")
 {
 	auto args	  = AX_PATH("BasicTests/IllegalChar.ax");
 	auto reporter = run_default(args);
-	CHECK(reporter.has_message(Message::IllegalChar, {args, 4, 3}, int('`')));
-}
-
-TEST_CASE("UnterminatedString")
-{
-	auto args	  = AX_PATH("BasicTests/UnterminatedString.ax");
-	auto reporter = run_default(args);
-	CHECK(reporter.has_message(Message::UnterminatedString, {args, 3, 11}, {}));
+	CHECK(reporter.has_message(Message::IllegalChar, {args, 4, 3}, 7));
 }
 
 TEST_CASE("NameTooLong")
 {
 	auto args	  = AX_PATH("BasicTests/NameTooLong.ax");
 	auto reporter = run_default(args);
-	CHECK(reporter.has_message(Message::NameTooLong, {args, 1, 12}, {}));
+	CHECK(reporter.has_message(Message::TokenTooLong, {args, 1, 12}, {}));
 }
 
-TEST_CASE("LiteralTooLong")
+TEST_CASE("StringTooLong")
 {
 	auto args	  = AX_PATH("BasicTests/LiteralTooLong.ax");
 	auto reporter = run_default(args);
-	CHECK(reporter.has_message(Message::LiteralTooLong, {args, 3, 9}, {}));
+	CHECK(reporter.has_message(Message::StringTooLong, {args, 3, 9}, {}));
 }
 
 TEST_CASE("CommentTooLong")
 {
 	auto args	  = AX_PATH("BasicTests/CommentTooLong.ax");
 	auto reporter = run_default(args);
-	CHECK(reporter.has_message(Message::CommentTooLong, {args, 1, 1}, {}));
+	CHECK(reporter.has_message(Message::TokenTooLong, {args, 1, 1}, {}));
+}
+
+TEST_CASE("MissingClosingQuote")
+{
+	auto args	  = AX_PATH("BasicTests/MissingClosingQuote.ax");
+	auto reporter = run_default(args);
+	CHECK(reporter.has_message(Message::MissingClosingQuote, {args, 3, 24}, {}));
+	CHECK(reporter.has_message(Message::MissingClosingQuote, {args, 4, 13}, {}));
 }
 
 TEST_CASE("EscapedNonKeyword")

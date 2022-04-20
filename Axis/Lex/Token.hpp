@@ -10,146 +10,125 @@ namespace ax
 	enum class TokenKind : uint8_t
 	{
 		Name,
+		NewLine,
 		String,
 		Integer,
 		Rational,
+		Character,
 		Comment,
 
 		// One-character tokens
-		LBrace,
-		RBrace,
-		LParen,
-		RParen,
-		LBracket,
-		RBracket,
-		Colon,
-		Semicolon,
-		Comma,
-		Dot,
-		Macro,
-		Escape,
-		Assign,
-		Plus,
-		Minus,
-		Mul,
-		Div,
-		Mod,
-		LogicNot,
-		Less,
-		Greater,
-		BitAnd,
-		BitOr,
-		Tilde,
-		Address,
-		Pointer,
-		Maybe,
+		LBrace,	   // {
+		RBrace,	   // }
+		LParen,	   // (
+		RParen,	   // )
+		LBracket,  // [
+		RBracket,  // ]
+		Colon,	   // :
+		Semicolon, // ;
+		Comma,	   // ,
+		Dot,	   // .
+		Backtick,  // `
+		Assign,	   // =
+		Plus,	   // +
+		Minus,	   // -
+		Mul,	   // *
+		Div,	   // /
+		Mod,	   // %
+		LogicNot,  // !
+		Less,	   // <
+		Greater,   // >
+		BitAnd,	   // &
+		BitOr,	   // |
+		Tilde,	   // ~
+		At,		   // @
+		Pointer,   // ^
+		Maybe,	   // ?
+		Macro,	   // $
 
 		// Two-character tokens
-		Meta,
-		Arrow,
-		Conversion,
-		Range,
-		Increment,
-		Decrement,
-		LogicAnd,
-		LogicOr,
-		Equal,
-		Inequal,
-		LessEq,
-		GreaterEq,
-		Pow,
-		FloorDiv,
-		LShift,
-		RShift,
-		AddAssign,
-		SubAssign,
-		MulAssign,
-		DivAssign,
-		ModAssign,
-		AndAssign,
-		OrAssign,
-		XorAssign,
+		Meta,		// ::
+		ThinArrow,	// ->
+		ThickArrow, // =>
+		Range,		// ..
+		Increment,	// ++
+		Decrement,	// --
+		LogicAnd,	// &&
+		LogicOr,	// ||
+		Equal,		// ==
+		Inequal,	// !=
+		LessEq,		// <=
+		GreaterEq,	// >=
+		Pow,		// **
+		FloorDiv,	// //
+		LShift,		// <<
+		RShift,		// >>
+		AddAssign,	// +=
+		SubAssign,	// -=
+		MulAssign,	// *=
+		DivAssign,	// /=
+		ModAssign,	// %=
+		AndAssign,	// &=
+		OrAssign,	// |=
+		XorAssign,	// ~=
 
 		// Three-character tokens
-		Spaceship,
-		Unpack,
-		RangeInclusive,
-		PowAssign,
-		FloorDivAssign,
-		LShiftAssign,
-		RShiftAssign,
+		Spaceship,		// <=>
+		Unpack,			// ...
+		RangeInclusive, // ..=
+		PowAssign,		// **=
+		FloorDivAssign, // //=
+		LShiftAssign,	// <<=
+		RShiftAssign,	// >>=
 
 		// Keywords
-		KwI8,
-		KwI16,
-		KwI32,
-		KwI64,
-		KwI128,
-		KwISize,
-		KwU8,
-		KwU16,
-		KwU32,
-		KwU64,
-		KwU128,
-		KwUSize,
-		KwF16,
-		KwF32,
-		KwF64,
-		KwF128,
-		KwFSize,
-		KwByte,
-		KwChar,
-		KwBool,
-		KwIf,
-		KwElse,
-		KwWhen,
-		KwFor,
-		KwDo,
-		KwWhile,
-		KwBreak,
-		KwContinue,
-		KwReturn,
-		KwYield,
-		KwAsync,
-		KwAwait,
-		KwTry,
-		KwCatch,
-		KwThrow,
-		KwTuple,
-		KwClass,
-		KwConcept,
-		KwEnum,
-		KwUnion,
-		KwOperator,
-		KwOut,
-		KwIn,
-		KwPack,
-		KwFamily,
-		KwFriend,
-		KwStatic,
-		KwDynamic,
-		KwOverride,
-		KwFinal,
-		KwLet,
-		KwVar,
-		KwConst,
-		KwUninit,
-		KwOwn,
-		KwCopy,
-		KwTrue,
-		KwFalse,
-		KwNull,
-		KwThis,
-		KwTrust,
+		If,
+		Else,
+		Switch,
+		For,
+		Do,
+		While,
+		Break,
+		Continue,
+		Return,
+		Yield,
+		Await,
+		Async,
+		Try,
+		Catch,
+		Throw,
+		Struct,
+		Class,
+		Trait,
+		Enum,
+		Union,
+		Public,
+		Protected,
+		Private,
+		Static,
+		Dynamic,
+		Override,
+		Sealed,
+		Let,
+		Var,
+		Const,
+		In,
+		Use,
+		To,
+		Interpret,
+		Uninit,
+		Copy,
+		Trust,
+		Implicit,
 
 		EndOfFile,
 	};
 
 	struct Token
 	{
-		TokenKind kind	 = TokenKind::Name;
-		uint16_t  length = 0;
-		uint32_t  offset = 0;
+		TokenKind kind	= TokenKind::Name;
+		uint16_t length = 0;
+		uint32_t offset = 0;
 
 		std::string_view to_string(std::string_view source) const;
 	};

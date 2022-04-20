@@ -22,10 +22,10 @@ namespace ax
 			kind = static_cast<TokenKind>(static_cast<uint8_t>(kind) + 1);
 		};
 
-		static_assert(std::to_underlying(LBrace) == 5);
-		static_assert(std::to_underlying(Meta) == 32);
-		static_assert(std::to_underlying(Spaceship) == 56);
-		static_assert(std::to_underlying(EndOfFile) == 124, "You changed the TokenKind enum, but you need to change this "
+		static_assert(std::to_underlying(LBrace) == 7);
+		static_assert(std::to_underlying(Meta) == 34);
+		static_assert(std::to_underlying(Spaceship) == 58);
+		static_assert(std::to_underlying(EndOfFile) == 102, "You changed the TokenKind enum, but you need to change this "
 															"lookup table computation to adapt to your changes.");
 		for(auto i = LBrace; i != Meta; increment(i))
 			_[i] = 1;
@@ -33,10 +33,10 @@ namespace ax
 		for(auto i = Meta; i != Spaceship; increment(i))
 			_[i] = 2;
 
-		for(auto i = Spaceship; i != KwI8; increment(i))
+		for(auto i = Spaceship; i != If; increment(i))
 			_[i] = 3;
 
-		for(auto i = KwI8; i != EndOfFile; increment(i))
+		for(auto i = If; i != EndOfFile; increment(i))
 			_[i] = get_keyword_length(i);
 
 		return _;
@@ -53,77 +53,26 @@ namespace ax
 	};
 
 	static const std::unordered_map<std::string, TokenKind, StringHash, std::equal_to<>> KEYWORDS {
-		{"i8", KwI8},
-		{"i16", KwI16},
-		{"i32", KwI32},
-		{"i64", KwI64},
-		{"i128", KwI128},
-		{"isize", KwISize},
-		{"u8", KwU8},
-		{"u16", KwU16},
-		{"u32", KwU32},
-		{"u64", KwU64},
-		{"u128", KwU128},
-		{"usize", KwUSize},
-		{"f16", KwF16},
-		{"f32", KwF32},
-		{"f64", KwF64},
-		{"f128", KwF128},
-		{"fsize", KwFSize},
-		{"byte", KwByte},
-		{"char", KwChar},
-		{"bool", KwBool},
-		{"if", KwIf},
-		{"else", KwElse},
-		{"when", KwWhen},
-		{"for", KwFor},
-		{"do", KwDo},
-		{"while", KwWhile},
-		{"break", KwBreak},
-		{"continue", KwContinue},
-		{"return", KwReturn},
-		{"yield", KwYield},
-		{"async", KwAsync},
-		{"await", KwAwait},
-		{"try", KwTry},
-		{"catch", KwCatch},
-		{"throw", KwThrow},
-		{"tuple", KwTuple},
-		{"class", KwClass},
-		{"concept", KwConcept},
-		{"enum", KwEnum},
-		{"union", KwUnion},
-		{"operator", KwOperator},
-		{"out", KwOut},
-		{"in", KwIn},
-		{"pack", KwPack},
-		{"family", KwFamily},
-		{"friend", KwFriend},
-		{"static", KwStatic},
-		{"dynamic", KwDynamic},
-		{"override", KwOverride},
-		{"final", KwFinal},
-		{"let", KwLet},
-		{"var", KwVar},
-		{"const", KwConst},
-		{"uninit", KwUninit},
-		{"own", KwOwn},
-		{"copy", KwCopy},
-		{"true", KwTrue},
-		{"false", KwFalse},
-		{"null", KwNull},
-		{"this", KwThis},
-		{"trust", KwTrust},
+		{"if", If},			  {"else", Else},			{"switch", Switch},	  {"for", For},
+		{"do", Do},			  {"while", While},			{"break", Break},	  {"continue", Continue},
+		{"return", Return},	  {"yield", Yield},			{"await", Await},	  {"async", Async},
+		{"try", Try},		  {"catch", Catch},			{"throw", Throw},	  {"struct", Struct},
+		{"class", Class},	  {"trait", Trait},			{"enum", Enum},		  {"union", Union},
+		{"public", Public},	  {"protected", Protected}, {"private", Private}, {"static", Static},
+		{"dynamic", Dynamic}, {"override", Override},	{"sealed", Sealed},	  {"let", Let},
+		{"var", Var},		  {"const", Const},			{"in", In},			  {"use", Use},
+		{"to", To},			  {"interpret", Interpret}, {"uninit", Uninit},	  {"copy", Copy},
+		{"trust", Trust},	  {"implicit", Implicit},
 	};
 
 	class Lexer
 	{
-		TokenStream			   tokens;
-		Source const&		   source;
+		TokenStream tokens;
+		Source const& source;
 		Source::Iterator const begin;
 		Source::Iterator const end;
-		Source::Iterator	   cursor;
-		Reporter&			   reporter;
+		Source::Iterator cursor;
+		Reporter& reporter;
 
 	public:
 		Lexer(Source const& source, Reporter& reporter) :
@@ -143,7 +92,7 @@ namespace ax
 		struct UnplacedToken
 		{
 			TokenKind kind;
-			uint16_t  length;
+			uint16_t length;
 
 			UnplacedToken() = default;
 
@@ -156,8 +105,8 @@ namespace ax
 
 		void next_token()
 		{
-			uint32_t offset	   = get_offset();
-			char	 character = *cursor++;
+			uint32_t offset = get_offset();
+			char character	= *cursor++;
 
 			UnplacedToken tok;
 			switch(character)
@@ -165,7 +114,9 @@ namespace ax
 				case ' ':
 				case '\t':
 				case '\r':
-				case '\n': return;
+				case '\f':
+				case '\v': return;
+				case '\n': tok = NewLine; break;
 				case '{': tok = LBrace; break;
 				case '}': tok = RBrace; break;
 				case '(': tok = LParen; break;
@@ -186,14 +137,16 @@ namespace ax
 				case '&': tok = match_and(); break;
 				case '|': tok = match_or(); break;
 				case '^': tok = Pointer; break;
-				case '@': tok = Address; break;
+				case '@': tok = At; break;
 				case '<': tok = match_left_angle(); break;
 				case '>': tok = match_right_angle(); break;
 				case '?': tok = Maybe; break;
 				case '%': tok = match_percent(); break;
 				case '~': tok = match_tilde(); break;
 				case '"': return lex_string(offset);
+				case '`': tok = Backtick; break;
 				case '$': tok = Macro; break;
+				case '\'': return lex_character(offset);
 				case '\\': return lex_escaped_keyword(offset);
 				default: return on_alphanumeric(offset, character);
 			}
@@ -229,8 +182,8 @@ namespace ax
 			{}
 
 			auto length = cursor - comment_begin;
-			if(length > UINT16_MAX)
-				return report<Message::CommentTooLong>(comment_begin);
+			if(length > UINT16_MAX) [[unlikely]]
+				return report<Message::TokenTooLong>(comment_begin);
 
 			tokens.append(Comment, static_cast<uint16_t>(length), offset);
 		}
@@ -247,17 +200,41 @@ namespace ax
 
 				if(ch == '\n')
 				{
-					report<Message::UnterminatedString>(cursor - 1);
+					report<Message::MissingClosingQuote>(cursor - 1);
 					break;
 				}
 				ch = *cursor++;
 			}
 
 			auto length = cursor - string_begin + 1;
-			if(length > UINT16_MAX)
-				return report<Message::LiteralTooLong>(string_begin - 1);
+			if(length > UINT16_MAX) [[unlikely]]
+				return report<Message::StringTooLong>(string_begin - 1);
 
 			tokens.append(String, static_cast<uint16_t>(length), offset);
+		}
+
+		void lex_character(uint32_t offset)
+		{
+			auto char_begin = cursor;
+			char ch			= *cursor++;
+			while(true)
+			{
+				if(ch == '\'')
+					break;
+
+				if(ch == '\n')
+				{
+					report<Message::MissingClosingQuote>(cursor - 1);
+					break;
+				}
+				ch = *cursor++;
+			}
+
+			auto length = cursor - char_begin + 1;
+			if(length > UINT16_MAX) [[unlikely]]
+				return report<Message::TokenTooLong>(char_begin - 1);
+
+			tokens.append(Character, static_cast<uint16_t>(length), offset);
 		}
 
 		void lex_word(uint32_t offset)
@@ -272,8 +249,8 @@ namespace ax
 			auto kind = it == KEYWORDS.end() ? Name : it->second;
 
 			auto length = cursor - name_begin;
-			if(length > UINT16_MAX)
-				return report<Message::NameTooLong>(name_begin);
+			if(length > UINT16_MAX) [[unlikely]]
+				return report<Message::TokenTooLong>(name_begin);
 
 			tokens.append(kind, static_cast<uint16_t>(length), offset);
 		}
@@ -285,7 +262,7 @@ namespace ax
 			{}
 
 			std::string_view kw(name_begin, --cursor);
-			if(KEYWORDS.find(kw) == KEYWORDS.end())
+			if(KEYWORDS.find(kw) == KEYWORDS.end()) [[unlikely]]
 				return report<Message::EscapedNonKeyword>(name_begin - 1, kw);
 
 			tokens.append(Name, static_cast<uint16_t>(kw.length()), offset);
@@ -299,8 +276,8 @@ namespace ax
 			determine_number_literal_kind(kind, first);
 
 			auto length = --cursor - number_begin;
-			if(length > UINT16_MAX)
-				return report<Message::LiteralTooLong>(number_begin);
+			if(length > UINT16_MAX) [[unlikely]]
+				return report<Message::TokenTooLong>(number_begin);
 
 			tokens.append(kind, static_cast<uint16_t>(length), offset);
 		}
@@ -332,7 +309,8 @@ namespace ax
 			} while(is_dec_digit(ch) || is_whitespace(ch));
 		}
 
-		template<bool (*CHAR_PREDICATE)(char)> void traverse_number_literal()
+		template<bool (*CHAR_PREDICATE)(char)>
+		void traverse_number_literal()
 		{
 			char ch;
 			do
@@ -373,7 +351,7 @@ namespace ax
 			if(match('='))
 				return Equal;
 			else if(match('>'))
-				return Conversion;
+				return ThickArrow;
 			else
 				return Assign;
 		}
@@ -391,7 +369,7 @@ namespace ax
 		UnplacedToken match_minus()
 		{
 			if(match('>'))
-				return Arrow;
+				return ThinArrow;
 			else if(match('-'))
 				return Decrement;
 			else if(match('='))
@@ -519,7 +497,8 @@ namespace ax
 			return static_cast<uint32_t>(cursor - begin);
 		}
 
-		template<Message MSG, typename... Ts> void report(Source::Iterator loc, Ts&&... ts) const
+		template<Message MSG, typename... Ts>
+		void report(Source::Iterator loc, Ts&&... ts) const
 		{
 			reporter.report<MSG>(source.locate(loc), std::forward<Ts>(ts)...);
 		}

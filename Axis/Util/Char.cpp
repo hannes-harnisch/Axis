@@ -20,14 +20,16 @@ namespace ax
 		return ch;
 	}
 
-	bool is_whitespace(char ch)
+	bool is_ignored_whitespace(char ch)
 	{
 		switch(ch)
 		{
 			case ' ':
 			case '\t':
 			case '\r':
-			case '\n': return true;
+			case '\n':
+			case '\v':
+			case '\f': return true;
 		}
 		return false;
 	}

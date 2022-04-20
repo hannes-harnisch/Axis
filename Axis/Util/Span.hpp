@@ -4,7 +4,8 @@
 
 namespace ax
 {
-	template<typename T> class Span : public std::span<T const>
+	template<typename T>
+	class Span : public std::span<T const>
 	{
 		using Base = std::span<T const>;
 
@@ -16,7 +17,8 @@ namespace ax
 		{}
 	};
 
-	template<typename T> class MutSpan : public std::span<T>
+	template<typename T>
+	class MutSpan : public std::span<T>
 	{
 		using Base = std::span<T>;
 
