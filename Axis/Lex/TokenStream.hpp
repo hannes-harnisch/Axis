@@ -11,7 +11,7 @@ namespace ax
 	class TokenStream
 	{
 	public:
-		void append(TokenKind kind, uint16_t length, uint32_t offset);
+		void		append(TokenKind kind, u16 length, u32 offset);
 		std::string to_string(std::string_view source) const;
 
 	private:

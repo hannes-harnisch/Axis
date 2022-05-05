@@ -13,10 +13,10 @@ namespace ax
 
 	template<typename T>
 	requires std::is_enum_v<T>
-	constexpr size_t size_from_enum_max()
+	constexpr usize size_from_enum_max()
 	{
 		auto values = magic_enum::enum_values<T>();
 		auto max	= std::max_element(values.begin(), values.end());
-		return static_cast<size_t>(*max) + 1;
+		return static_cast<usize>(*max) + 1;
 	}
 }

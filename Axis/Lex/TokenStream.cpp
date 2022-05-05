@@ -4,7 +4,7 @@
 
 namespace ax
 {
-	void TokenStream::append(TokenKind kind, uint16_t length, uint32_t offset)
+	void TokenStream::append(TokenKind kind, u16 length, u32 offset)
 	{
 		tokens.emplace_back(kind, length, offset);
 	}

@@ -26,10 +26,7 @@ namespace ax
 		{
 			case ' ':
 			case '\t':
-			case '\r':
-			case '\n':
-			case '\v':
-			case '\f': return true;
+			case '\r': return true;
 		}
 		return false;
 	}

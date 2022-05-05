@@ -35,12 +35,21 @@ namespace ax
 		warnings_as_errors = true;
 	}
 
-	bool Reporter::has_message(Message msg, SourceLocation loc, FormatArgs args) const
+	bool Reporter::pop_message(Message msg, SourceLocation loc, FormatArgs args)
 	{
 		WrittenMessage target(msg, loc, std::vformat(get_format(msg), args));
 
 		auto it = std::find(messages.begin(), messages.end(), target);
-		return it != messages.end();
+		if(it == messages.end())
+			return false;
+
+		messages.erase(it);
+		return true;
+	}
+
+	bool Reporter::has_no_messages()
+	{
+		return messages.empty();
 	}
 
 	errno_t Reporter::set_output(std::string_view path)

@@ -9,9 +9,8 @@ namespace ax
 	enum class Message
 	{
 		IllegalChar,
-		MissingClosingQuote,
-		StringTooLong,
 		TokenTooLong,
+		MissingClosingQuote,
 		EscapedNonKeyword
 	};
 
@@ -22,9 +21,8 @@ namespace ax
 		{
 			case IllegalChar: return "illegal character '{}'";
 			case MissingClosingQuote: return "missing closing quote";
-			case StringTooLong: return "string is too long, embed it as an asset instead";
 			case TokenTooLong: return "token is too long";
-			case EscapedNonKeyword: return "{} is not a keyword that can be escaped";
+			case EscapedNonKeyword: return "`{}` is not a keyword that can be escaped";
 		}
 		return "";
 	}

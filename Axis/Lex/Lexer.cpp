@@ -7,25 +7,25 @@ namespace ax
 {
 	using enum TokenKind;
 
-	constexpr uint16_t get_keyword_length(TokenKind kind)
+	constexpr u16 get_keyword_length(TokenKind kind)
 	{
 		constexpr int PREFIX_LENGTH = 2;
 
 		auto keyword_length = enum_name(kind).length() - PREFIX_LENGTH;
-		return static_cast<uint16_t>(keyword_length);
+		return static_cast<u16>(keyword_length);
 	}
 
 	constexpr auto TOKEN_LENGTHS = [] {
-		LookupTable<TokenKind, uint16_t> _;
+		LookupTable<TokenKind, u16> _;
 
 		auto increment = [](TokenKind& kind) {
-			kind = static_cast<TokenKind>(static_cast<uint8_t>(kind) + 1);
+			kind = static_cast<TokenKind>(static_cast<u8>(kind) + 1);
 		};
 
 		static_assert(std::to_underlying(LBrace) == 7);
 		static_assert(std::to_underlying(Meta) == 34);
 		static_assert(std::to_underlying(Spaceship) == 58);
-		static_assert(std::to_underlying(EndOfFile) == 102, "You changed the TokenKind enum, but you need to change this "
+		static_assert(std::to_underlying(EndOfFile) == 103, "You changed the TokenKind enum, but you need to change this "
 															"lookup table computation to adapt to your changes.");
 		for(auto i = LBrace; i != Meta; increment(i))
 			_[i] = 1;
@@ -46,7 +46,7 @@ namespace ax
 	{
 		using is_transparent = void;
 
-		size_t operator()(std::string_view txt) const
+		usize operator()(std::string_view txt) const
 		{
 			return std::hash<std::string_view>()(txt);
 		}
@@ -67,15 +67,15 @@ namespace ax
 
 	class Lexer
 	{
-		TokenStream tokens;
-		Source const& source;
-		Source::Iterator const begin;
-		Source::Iterator const end;
-		Source::Iterator cursor;
-		Reporter& reporter;
+		TokenStream			   tokens;
+		const Source&		   source;
+		const Source::Iterator begin;
+		const Source::Iterator end;
+		Source::Iterator	   cursor;
+		Reporter&			   reporter;
 
 	public:
-		Lexer(Source const& source, Reporter& reporter) :
+		Lexer(const Source& source, Reporter& reporter) :
 			source(source), begin(source.begin()), end(source.end()), cursor(begin), reporter(reporter)
 		{}
 
@@ -92,30 +92,27 @@ namespace ax
 		struct UnplacedToken
 		{
 			TokenKind kind;
-			uint16_t length;
+			u16		  length;
 
 			UnplacedToken() = default;
 
 			UnplacedToken(TokenKind kind) : kind(kind), length(TOKEN_LENGTHS[kind])
 			{}
 
-			UnplacedToken(TokenKind kind, uint16_t length) : kind(kind), length(length)
+			UnplacedToken(TokenKind kind, u16 length) : kind(kind), length(length)
 			{}
 		};
 
 		void next_token()
 		{
-			uint32_t offset = get_offset();
-			char character	= *cursor++;
+			u32 offset = get_offset();
 
 			UnplacedToken tok;
-			switch(character)
+			switch(*cursor++)
 			{
 				case ' ':
 				case '\t':
-				case '\r':
-				case '\f':
-				case '\v': return;
+				case '\r': return;
 				case '\n': tok = NewLine; break;
 				case '{': tok = LBrace; break;
 				case '}': tok = RBrace; break;
@@ -123,10 +120,10 @@ namespace ax
 				case ')': tok = RParen; break;
 				case '[': tok = LBracket; break;
 				case ']': tok = RBracket; break;
-				case '#': return lex_comment(offset);
+				case '#': lex_comment(offset); return;
 				case ';': tok = Semicolon; break;
 				case ',': tok = Comma; break;
-				case '.': return match_dot(offset);
+				case '.': match_dot(offset); return;
 				case ':': tok = match_colon(); break;
 				case '=': tok = match_equal(); break;
 				case '+': tok = match_plus(); break;
@@ -143,19 +140,19 @@ namespace ax
 				case '?': tok = Maybe; break;
 				case '%': tok = match_percent(); break;
 				case '~': tok = match_tilde(); break;
-				case '"': return lex_string(offset);
+				case '"': lex_string(offset); return;
 				case '`': tok = Backtick; break;
 				case '$': tok = Macro; break;
-				case '\'': return lex_character(offset);
-				case '\\': return lex_escaped_keyword(offset);
-				default: return on_alphanumeric(offset, character);
+				case '\'': lex_character(offset); return;
+				case '\\': lex_escaped_keyword(offset); return;
+				default: on_alphanumeric(offset); return;
 			}
 			tokens.append(tok.kind, tok.length, offset);
 		}
 
 		bool match(char expected)
 		{
-			if(cursor == end)
+			if(cursor == end) [[unlikely]]
 				return false;
 
 			if(*cursor != expected)
@@ -165,83 +162,78 @@ namespace ax
 			return true;
 		}
 
-		void on_alphanumeric(uint32_t offset, char character)
+		void on_alphanumeric(u32 offset)
 		{
-			if(can_begin_names(character))
+			char ch = cursor[-1];
+			if(can_begin_names(ch))
 				lex_word(offset);
-			else if(is_dec_digit(character))
-				lex_number(offset, character);
+			else if(is_dec_digit(ch))
+				lex_number(offset);
 			else
 				on_illegal_char();
 		}
 
-		void lex_comment(uint32_t offset)
+		void lex_comment(u32 offset)
 		{
 			auto comment_begin = cursor - 1;
-			while(*cursor++ != '\n')
-			{}
+			while(cursor != end)
+			{
+				if(*cursor++ == '\n')
+					break;
+			}
 
 			auto length = cursor - comment_begin;
 			if(length > UINT16_MAX) [[unlikely]]
 				return report<Message::TokenTooLong>(comment_begin);
 
-			tokens.append(Comment, static_cast<uint16_t>(length), offset);
+			tokens.append(Comment, static_cast<u16>(length), offset);
 		}
 
-		void lex_string(uint32_t offset)
+		void lex_quoted_sequence(u32 offset, char quote, TokenKind kind)
 		{
-			auto string_begin = cursor;
+			auto seq_begin = cursor - 1;
 
-			char ch = *cursor++;
-			while(true)
+			while(cursor != end)
 			{
-				if(ch == '"')
+				char ch = *cursor++;
+
+				if(ch == quote)
 					break;
 
-				if(ch == '\n')
+				if(ch == '\n') [[unlikely]]
 				{
-					report<Message::MissingClosingQuote>(cursor - 1);
+					report<Message::MissingClosingQuote>(--cursor);
 					break;
 				}
-				ch = *cursor++;
 			}
 
-			auto length = cursor - string_begin + 1;
+			auto length = cursor - seq_begin + 1;
 			if(length > UINT16_MAX) [[unlikely]]
-				return report<Message::StringTooLong>(string_begin - 1);
+				return report<Message::TokenTooLong>(seq_begin);
 
-			tokens.append(String, static_cast<uint16_t>(length), offset);
+			tokens.append(kind, static_cast<u16>(length), offset);
 		}
 
-		void lex_character(uint32_t offset)
+		void lex_string(u32 offset)
 		{
-			auto char_begin = cursor;
-			char ch			= *cursor++;
-			while(true)
+			lex_quoted_sequence(offset, '"', String);
+		}
+
+		void lex_character(u32 offset)
+		{
+			lex_quoted_sequence(offset, '\'', Character);
+		}
+
+		void lex_word(u32 offset)
+		{
+			auto name_begin = cursor - 1;
+			while(cursor != end)
 			{
-				if(ch == '\'')
+				if(!is_word_char(*cursor))
 					break;
 
-				if(ch == '\n')
-				{
-					report<Message::MissingClosingQuote>(cursor - 1);
-					break;
-				}
-				ch = *cursor++;
+				++cursor;
 			}
-
-			auto length = cursor - char_begin + 1;
-			if(length > UINT16_MAX) [[unlikely]]
-				return report<Message::TokenTooLong>(char_begin - 1);
-
-			tokens.append(Character, static_cast<uint16_t>(length), offset);
-		}
-
-		void lex_word(uint32_t offset)
-		{
-			auto name_begin = --cursor;
-			while(is_word_char(*++cursor))
-			{}
 
 			std::string_view kw(name_begin, cursor);
 
@@ -252,73 +244,82 @@ namespace ax
 			if(length > UINT16_MAX) [[unlikely]]
 				return report<Message::TokenTooLong>(name_begin);
 
-			tokens.append(kind, static_cast<uint16_t>(length), offset);
+			tokens.append(kind, static_cast<u16>(length), offset);
 		}
 
-		void lex_escaped_keyword(uint32_t offset)
+		void lex_escaped_keyword(u32 offset)
 		{
 			auto name_begin = cursor;
-			while(is_word_char(*cursor++))
-			{}
+			while(cursor != end)
+			{
+				if(!is_word_char(*cursor))
+					break;
 
-			std::string_view kw(name_begin, --cursor);
+				++cursor;
+			}
+
+			std::string_view kw(name_begin, cursor);
 			if(KEYWORDS.find(kw) == KEYWORDS.end()) [[unlikely]]
-				return report<Message::EscapedNonKeyword>(name_begin - 1, kw);
+				return report<Message::EscapedNonKeyword>(name_begin, kw);
 
-			tokens.append(Name, static_cast<uint16_t>(kw.length()), offset);
+			tokens.append(Name, static_cast<u16>(kw.length()), offset);
 		}
 
-		void lex_number(uint32_t offset, char first)
+		void lex_number(u32 offset)
 		{
-			auto number_begin = cursor - 1;
+			auto num_begin = cursor - 1;
+			auto kind	   = determine_number_literal_kind();
 
-			auto kind = Integer;
-			determine_number_literal_kind(kind, first);
-
-			auto length = --cursor - number_begin;
+			auto length = cursor - num_begin;
 			if(length > UINT16_MAX) [[unlikely]]
-				return report<Message::TokenTooLong>(number_begin);
+				return report<Message::TokenTooLong>(num_begin);
 
-			tokens.append(kind, static_cast<uint16_t>(length), offset);
+			tokens.append(kind, static_cast<u16>(length), offset);
 		}
 
-		void determine_number_literal_kind(TokenKind& kind, char first)
+		TokenKind determine_number_literal_kind()
 		{
+			char first = cursor[-1];
 			if(first == '.')
 			{
-				kind = Rational;
-				traverse_number_literal<is_dec_digit>();
-				return;
+				eat_number_literal<is_dec_digit>();
+				return Rational;
 			}
-			else if(first == '0')
+			else if(first == '0' && cursor != end)
 			{
 				switch(*cursor)
 				{
-					case 'x': return traverse_number_literal<is_hex_digit>();
-					case 'b': return traverse_number_literal<is_bin_digit>();
-					case 'o': return traverse_number_literal<is_oct_digit>();
+					case 'x': eat_number_literal<is_hex_digit>(); return Integer;
+					case 'b': eat_number_literal<is_bin_digit>(); return Integer;
+					case 'o': eat_number_literal<is_oct_digit>(); return Integer;
 				}
 			}
 
-			char ch;
-			do
+			TokenKind kind = Integer;
+			while(cursor != end)
 			{
-				ch = *cursor++;
+				char ch = *cursor++;
 				if(ch == '.')
 					kind = Rational;
-			} while(is_dec_digit(ch) || is_whitespace(ch));
+
+				if(!is_dec_digit(ch) && !is_ignored_whitespace(ch))
+					break;
+			}
+			return kind;
 		}
 
 		template<bool (*CHAR_PREDICATE)(char)>
-		void traverse_number_literal()
+		void eat_number_literal()
 		{
-			char ch;
-			do
-				ch = *cursor++;
-			while(CHAR_PREDICATE(ch) || is_whitespace(ch));
+			while(cursor != end)
+			{
+				char ch = *cursor++;
+				if(!CHAR_PREDICATE(ch) && !is_ignored_whitespace(ch))
+					break;
+			}
 		}
 
-		void match_dot(uint32_t offset)
+		void match_dot(u32 offset)
 		{
 			UnplacedToken tok;
 			if(match('.'))
@@ -331,7 +332,10 @@ namespace ax
 					tok = Range;
 			}
 			else if(is_dec_digit(*cursor))
-				return lex_number(offset, '.');
+			{
+				lex_number(offset);
+				return;
+			}
 			else
 				tok = Dot;
 
@@ -492,9 +496,9 @@ namespace ax
 			report<Message::IllegalChar>(cursor - 1, static_cast<int>(cursor[-1]));
 		}
 
-		uint32_t get_offset() const
+		u32 get_offset() const
 		{
-			return static_cast<uint32_t>(cursor - begin);
+			return static_cast<u32>(cursor - begin);
 		}
 
 		template<Message MSG, typename... Ts>

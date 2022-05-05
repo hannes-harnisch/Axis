@@ -39,7 +39,8 @@ namespace ax
 		}
 
 		void set_warnings_as_errors();
-		bool has_message(Message msg, SourceLocation loc, FormatArgs args) const;
+		bool pop_message(Message msg, SourceLocation loc, FormatArgs args);
+		bool has_no_messages();
 		errno_t set_output(std::string_view file_path);
 
 	private:

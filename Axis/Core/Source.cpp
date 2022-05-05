@@ -10,7 +10,7 @@ namespace ax
 		std::string path(path_text);
 
 		UniqueFile file;
-		if(fopen_s(std::out_ptr(file), path.data(), "r"))
+		if(fopen_s(std::out_ptr(file), path.data(), "rb"))
 			return {};
 
 		std::fseek(file.get(), 0, SEEK_END);
@@ -20,14 +20,13 @@ namespace ax
 		std::string content(size, '\0');
 		std::fread(content.data(), size, 1, file.get());
 
-		content += '\n'; // Add newline to break loops in lexer properly
-		content += '\f'; // Add form feed as extra buffering
 		return content;
 	}
 
 	std::optional<Source> Source::from(std::string_view path)
 	{
 		auto source_text = get_file_content(path);
+
 		if(source_text)
 			return Source(std::move(*source_text), path);
 

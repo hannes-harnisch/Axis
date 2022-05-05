@@ -7,7 +7,7 @@
 namespace ax
 {
 	// Changing constant values and adding constants requires also changing the lookup table definition below.
-	enum class TokenKind : uint8_t
+	enum class TokenKind : u8
 	{
 		Name,
 		NewLine,
@@ -126,10 +126,13 @@ namespace ax
 
 	struct Token
 	{
-		TokenKind kind	= TokenKind::Name;
-		uint16_t length = 0;
-		uint32_t offset = 0;
+		TokenKind kind	 = TokenKind::Name;
+		u16		  length = 0;
+		u32		  offset = 0;
 
-		std::string_view to_string(std::string_view source) const;
+		std::string_view to_string(std::string_view source) const
+		{
+			return {source.data() + offset, length};
+		}
 	};
 }
